@@ -1,0 +1,7 @@
+.volume-slider {
+  display: flex;
+
+  & > :nth-child(n-1) {
+    margin-right: 0.5em;
+  }
+}
