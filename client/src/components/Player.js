@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 
 import { Icon, IconButton, Slider } from '@material-ui/core'
 import {
@@ -12,6 +12,8 @@ import {
   SkipPrevious,
   SkipNext
 } from '@material-ui/icons/'
+
+import debounce from 'lodash.debounce'
 
 import {
   eject,
@@ -31,9 +33,18 @@ const Player = () => {
   const [intervalRef, setIntervalRef] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  const debouncedVolumeChange = useCallback(
+    debounce((newValue) => {
+      console.log('debounce')
+      setVolume(newValue - volume).then(() => setIsLoading(false))
+    }, 1000),
+    []
+  )
+
   const volumeChange = (event, newValue) => {
+    setIsLoading(true)
     setVolumeState(newValue)
-    setVolume(newValue - volume)
+    debouncedVolumeChange(newValue)
   }
 
   const isPlayable = infos != null && infos.isPlayable && !isLoading

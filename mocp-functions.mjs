@@ -20,7 +20,7 @@ const stop = () => execShellCommand(`mocp -s`)
 const pause = () => execShellCommand(`mocp -P`)
 const next = () => execShellCommand(`mocp -f`)
 const prev = () => execShellCommand(`mocp -r`)
-const setVolume = (value) => execShellCommand(`mocp -v ${value}%`)
+const setVolume = (value) => execShellCommand(`mocp -v ${value}`)
 const shuffle = () => execShellCommand(`mocp -t shuffle`)
 const getInfos = () =>
   execShellCommand(`mocp -i`)

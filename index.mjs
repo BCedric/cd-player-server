@@ -49,15 +49,15 @@ const playDisc = async () => {
 }
 
 let folderExists = false
-// setInterval(() => {
-//   if (fs.existsSync(process.env.CD_FOLDER) && !folderExists) {
-//     folderExists = true
-//     playDisc()
-//     console.log('start disque')
-//   } else if (!fs.existsSync(process.env.CD_FOLDER) && folderExists) {
-//     folderExists = false
-//   }
-// }, 5000)
+setInterval(() => {
+  if (fs.existsSync(process.env.CD_FOLDER) && !folderExists) {
+    folderExists = true
+    playDisc()
+    console.log('start disque')
+  } else if (!fs.existsSync(process.env.CD_FOLDER) && folderExists) {
+    folderExists = false
+  }
+}, 5000)
 
 app.put('/eject', async (req, res) => {
   stop()
@@ -111,7 +111,7 @@ app.put('/shuffle', async (req, res) => {
 app.put('/volume', async (req, res) => {
   const value = req.body.value
   const strValue = value >= 0 ? `+${value}` : `${value}`
-  await setVolume(strValue)
+  await setVolume(value)
   res.json(await getInfos())
 })
 
