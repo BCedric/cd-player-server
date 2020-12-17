@@ -17,7 +17,7 @@ const handleError = async (req, res, next) => {
 
 const play = () => execShellCommand(`mocp -p`)
 const stop = () => execShellCommand(`mocp -s`)
-const pause = () => execShellCommand(`mocp -P`)
+const pause = () => execShellCommand(`mocp -G`)
 const next = () => execShellCommand(`mocp -f`)
 const prev = () => execShellCommand(`mocp -r`)
 const setVolume = (value) => execShellCommand(`mocp -v ${value}`)
@@ -26,6 +26,9 @@ const getInfos = () =>
   execShellCommand(`mocp -i`)
     .then((infos) => {
       console.log(infos)
+      console.log(
+        `amixer sget ${process.env.SOUND_INTERFACE} | grep 'Mono:' | awk -F'[][]' '{ print $2 }'`
+      )
       return infos
     })
     .then((infos) => infos.split('\n'))
@@ -39,26 +42,24 @@ const getInfos = () =>
       //     ? infos[13].replace('set shuffle ', '')
       //     : infos[10].replace('set shuffle ', ''),
       volume: await getVolumeFromAmixer(),
+      volumeLimits: await getVolumeLimitsFromAmixer(),
       isPlayable: fs.existsSync(process.env.CD_FOLDER)
     }))
 
 const clearQueue = () => execShellCommand(`mocp -c`)
 const setQueue = (path) => execShellCommand(`mocp -a ${path}`)
-const startMusicPlayer = () => execShellCommand(`mocp -S`)
+const startMusicPlayer = () => execShellCommand(`mocp -SF`)
 
 const getVolumeFromAmixer = () => {
-  return execShellCommand(`amixer get ${process.env.SOUND_INTERFACE}`)
-    .then((soundInterface) => {
-      return soundInterface.trim()
-    })
-    .then((soundInterface) => {
-      const splitted = soundInterface.split('\n')
-      return splitted[splitted.length - 1]
-    })
-    .then((soundLine) => {
-      const removedStart = soundLine.substring(soundLine.indexOf('[') + 1)
-      return removedStart.substring(0, removedStart.indexOf('%'))
-    })
+  return execShellCommand(
+    `amixer sget ${process.env.SOUND_INTERFACE} | grep 'Mono:' | awk -F' ' '{ print $3 }'`
+  ).then((volume) => volume.trim())
+}
+
+const getVolumeLimitsFromAmixer = () => {
+  return execShellCommand(
+    `amixer sget ${process.env.SOUND_INTERFACE} | grep 'Limits:' | awk -F' ' '{ print $3, $5 }'`
+  ).then((limits) => limits.trim().split(' '))
 }
 
 export {

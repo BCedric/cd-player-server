@@ -26,6 +26,22 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 dotenv.config()
 
+const init = async () => {
+  await startMusicPlayer()
+  let folderExists = false
+  setInterval(() => {
+    if (fs.existsSync(process.env.CD_FOLDER) && !folderExists) {
+      folderExists = true
+      playDisc()
+      console.log('start disque')
+    } else if (!fs.existsSync(process.env.CD_FOLDER) && folderExists) {
+      folderExists = false
+    }
+  }, 5000)
+}
+
+init()
+
 const app = express()
 app.use(cors())
 app.use(bodyParser.json())
@@ -38,43 +54,35 @@ const sortFiles = function (a, b) {
 const playDisc = async () => {
   clearQueue()
   const files = fs.readdirSync(process.env.CD_FOLDER)
-  await Promise.all(
-    files.sort(sortFiles).map(async (file) => {
-      const filePath = `${process.env.CD_FOLDER}/${file}`.replace(' ', '\\ ')
-      return setQueue(filePath)
-    })
-  )
-  console.log('end queue')
+
+  const sortedFiles = files.sort(sortFiles)
+  for (const file in sortedFiles) {
+    const filePath = `${process.env.CD_FOLDER}/${sortedFiles[file]}`.replace(
+      ' ',
+      '\\ '
+    )
+    await setQueue(filePath)
+  }
+
   return play()
 }
-
-let folderExists = false
-setInterval(() => {
-  if (fs.existsSync(process.env.CD_FOLDER) && !folderExists) {
-    folderExists = true
-    playDisc()
-    console.log('start disque')
-  } else if (!fs.existsSync(process.env.CD_FOLDER) && folderExists) {
-    folderExists = false
-  }
-}, 5000)
 
 app.put('/eject', async (req, res) => {
   stop()
   clearQueue()
-  await execShellCommand('eject cdrom', (error) => {
-    console.log(error)
-  })
+  await execShellCommand('eject cdrom')
   res.json({ ...(await getInfos()), isPlayable: false })
 })
 
 app.put('/play', async (req, res) => {
   console.log('start play')
   const infos = await getInfos()
-  console.log(infos)
-  if (infos.status !== 'STOP') {
-    await play()
+  console.log('[play]', infos.status)
+  if (infos.status === 'PAUSE') {
+    console.log('play')
+    await pause()
   } else {
+    console.log('play disc')
     await playDisc()
   }
 
@@ -124,7 +132,10 @@ app.get('', (req, res) => {
   res.sendFile(path.join(__dirname, 'client/build', 'index.html'))
 })
 
+app.get('/env', (req, res) => {
+  res.json(process.env)
+})
+
 app.listen(process.env.PORT, () =>
   console.log(`Listening on port ${process.env.PORT}`)
 )
-startMusicPlayer()
