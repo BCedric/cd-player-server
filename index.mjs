@@ -5,6 +5,8 @@ import cors from 'cors'
 import path, { dirname } from 'path'
 import bodyParser from 'body-parser'
 import { fileURLToPath } from 'url'
+import socketIo from 'socket.io'
+import http from 'http'
 
 import {
   play,
@@ -19,7 +21,7 @@ import {
   setQueue,
   startMusicPlayer,
   handleError
-} from './mocp-functions.mjs'
+} from './cmus-functions.mjs'
 import { execShellCommand } from './exec-shell-command.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -27,6 +29,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 dotenv.config()
 
 const app = express()
+const server = http.Server(app)
+const io = socketIo(server, {
+  cors: {
+    origin: process.env.CLIENT_URL,
+    methods: ['GET', 'POST']
+  }
+})
+
 app.use(cors())
 app.use(bodyParser.json())
 app.use(handleError)
@@ -36,7 +46,7 @@ const sortFiles = function (a, b) {
 }
 
 const playDisc = async () => {
-  clearQueue()
+  await clearQueue()
   const files = fs.readdirSync(process.env.CD_FOLDER)
   await Promise.all(
     files.sort(sortFiles).map(async (file) => {
@@ -44,12 +54,14 @@ const playDisc = async () => {
       return setQueue(filePath)
     })
   )
-  console.log('end queue')
+  await next()
   return play()
 }
 
 let folderExists = false
-setInterval(() => {
+setInterval(async () => {
+  const infos = await getInfos()
+  io.sockets.emit('FromApi', { infos })
   if (fs.existsSync(process.env.CD_FOLDER) && !folderExists) {
     folderExists = true
     playDisc()
@@ -58,6 +70,15 @@ setInterval(() => {
     folderExists = false
   }
 }, 5000)
+
+io.sockets.on('connection', function (socket) {
+  socket.on('hello', function (data) {
+    console.log('new client connected')
+  })
+  socket.on('news', function (data) {
+    socket.emit('news_by_server', 1)
+  })
+})
 
 app.put('/eject', async (req, res) => {
   stop()
@@ -71,15 +92,15 @@ app.put('/eject', async (req, res) => {
 app.put('/play', async (req, res) => {
   console.log('start play')
   const infos = await getInfos()
-  console.log(infos)
-  if (infos.status !== 'STOP') {
-    await play()
-  } else {
+  console.log(infos, infos.status === 'stopped')
+  if (infos.status === 'stopped') {
     await playDisc()
+  } else {
+    await play()
   }
 
   console.log('return play')
-  return res.json({ ...(await getInfos()), status: 'PLAY' })
+  return res.json({ ...(await getInfos()), status: 'playing' })
 })
 
 app.put('/stop', async (req, res) => {
@@ -95,12 +116,12 @@ app.put('/pause', async (req, res) => {
 
 app.put('/next', async (req, res) => {
   await next()
-  res.json({ ...(await getInfos()), status: 'PLAY' })
+  res.json({ ...(await getInfos()), status: 'playing' })
 })
 
 app.put('/prev', async (req, res) => {
   await prev()
-  res.json({ ...(await getInfos()), status: 'PLAY' })
+  res.json({ ...(await getInfos()), status: 'playing' })
 })
 
 app.put('/shuffle', async (req, res) => {
@@ -111,7 +132,7 @@ app.put('/shuffle', async (req, res) => {
 app.put('/volume', async (req, res) => {
   const value = req.body.value
   const strValue = value >= 0 ? `+${value}` : `${value}`
-  await setVolume(value)
+  await setVolume(strValue)
   res.json(await getInfos())
 })
 
@@ -124,7 +145,7 @@ app.get('', (req, res) => {
   res.sendFile(path.join(__dirname, 'client/build', 'index.html'))
 })
 
-app.listen(process.env.PORT, () =>
+server.listen(process.env.PORT, () =>
   console.log(`Listening on port ${process.env.PORT}`)
 )
 startMusicPlayer()

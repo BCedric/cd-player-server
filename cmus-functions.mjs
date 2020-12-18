@@ -39,17 +39,21 @@ const getInfos = () =>
           ? infos[2].replace('duration ', '')
           : null,
       position:
-        infos[3] != null && infos[3].includes('duration')
+        infos[3] != null && infos[3].includes('position')
           ? infos[3].replace('position ', '')
           : null,
       shuffle:
         infos[13] != null && infos[13].includes('shuffle')
-          ? infos[13].replace('set shuffle ', '')
-          : infos[10].replace('set shuffle ', ''),
+          ? infos[13].replace('set shuffle ', '') === 'true'
+          : infos[10] != null
+          ? infos[10].replace('set shuffle ', '') === 'true'
+          : null,
       volume:
         infos[15] != null && infos[15].includes('set vol_left')
           ? infos[15].replace('set vol_left ', '')
-          : infos[12].replace('set vol_left ', ''),
+          : infos[12] != null
+          ? infos[12].replace('set vol_left ', '')
+          : null,
       isPlayable: fs.existsSync(process.env.CD_FOLDER)
     }))
 
